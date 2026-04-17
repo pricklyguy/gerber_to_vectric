@@ -11,24 +11,7 @@ This project was built for the real-world CNC crowd: people making prototype boa
 
 ---
 
-## Why this exists
-
-Most PCB tooling assumes one of two worlds:
-
-- send everything to a board house
-- use a dedicated PCB CAM workflow
-
-This tool lives in the third world:
-
-- design the board
-- export Gerbers and drill files
-- generate a DXF
-- bring it into VCarve
-- cut copper without losing your mind
-
----
-
-## What it does
+## Features
 
 - Parses **Gerber RS-274X** copper layers
 - Parses **Excellon drill** files
@@ -37,22 +20,18 @@ This tool lives in the third world:
   - flashed pads
   - drill holes
   - board outline
-- Supports both:
+- Supports:
   - **GUI mode**
   - **CLI mode**
-- Auto-detects common file names for:
-  - top copper
-  - bottom copper
-  - board outline
-  - drill files
-- Uses **Shapely** to buffer traces into real copper-width polygons
-- Lightly welds overlapping copper geometry for cleaner DXF output
+- Auto-detects common top, bottom, outline, and drill files
+- Uses **Shapely** to convert traces into real copper-width polygons
 - Includes options for:
   - fallback trace width
   - optional isolation contour layers
   - optional copper fill region handling
 
 ---
+
 
 ## Screenshot
 
@@ -70,27 +49,23 @@ add a second image for a VCarve import example:
 
 ---
 
-## Current sweet spot
+## Best use case
 
 This tool currently works best for:
 
 - simple 1-layer or 2-layer hobby boards
-- utility / power distribution boards
+- power / utility boards
 - wide traces
-- through-hole drilling workflows
-- CNC-first board layouts
+- through-hole workflows
+- CNC-first PCB designs
 - VCarve / Vectric import workflows
 
-### Best results for self-milled boards
+For boards you plan to mill yourself, you’ll usually get the cleanest results by:
 
-For boards you plan to cut yourself on a CNC, these usually behave best:
-
-- **wide traces**
-- **larger clearances**
-- **simple geometry**
-- **no solid copper pour unless you really need it**
-
-Copper pours are great for boards going to a fab house, but for CNC-milled boards they can add extra region/polarity complexity that makes export and cleanup more annoying than it needs to be.
+- using wider traces
+- increasing clearances
+- keeping geometry simple
+- avoiding solid copper pours unless you really need them
 
 ---
 
@@ -104,13 +79,21 @@ Copper pours are great for boards going to a fab house, but for CNC-milled board
 - `ezdxf`
 - `shapely`
 
-Install dependencies:
-
+Install:
+Download the script and save it to whatever file/folder you want it in.  
+From Windows you can double click and open from there. (you must associate it with python, once)
+```md
+![Prickly Gerber to DXF GUI](docs/gui_screenshot.png)
+```
+From PowerShell cd into the folder/directory you saved it in.
+Make sure requirements are installed (Python, ezdxf, shapely)
+run this command: python *script_name*.py
+That's it.
 ```bash
 pip install ezdxf shapely
 ```
 
-Or from `requirements.txt`:
+Or:
 
 ```bash
 pip install -r requirements.txt
@@ -125,25 +108,25 @@ pip install -r requirements.txt
 Run with no arguments:
 
 ```bash
-python script/export_script.py
+python export_script.py
 ```
 
 Or explicitly:
 
 ```bash
-python script/export_script.py --gui
+python export_script.py --gui
 ```
 
 ### CLI mode
 
 ```bash
-python script/export_script.py <gerber_directory> [output.dxf]
+python export_script.py <gerber_directory> [output.dxf]
 ```
 
 Example:
 
 ```bash
-python script/export_script.py ./my_board ./my_board/pcb_complete.dxf
+python export_script.py ./my_board ./my_board/pcb_complete.dxf
 ```
 
 If no output path is provided, it defaults to:
@@ -248,18 +231,6 @@ This is a practical CNC shop tool, not a full Gerber CAM suite.
 
 ---
 
-## Recommended CNC PCB design rules
-
-For boards you plan to cut yourself:
-
-- use wider traces than you would for fab
-- increase copper clearance
-- avoid copper pours unless truly needed
-- keep geometry simple
-- test on scrap first
-- preview the DXF before committing a real board
-
----
 
 ## Planned improvements
 
