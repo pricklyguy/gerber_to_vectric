@@ -726,20 +726,25 @@ def launch_gui() -> None:
 
     root = tk.Tk()
     root.title("Gerber to DXF by The Prickly Guy")
-    root.geometry("860x560")
-    root.minsize(820, 520)
+    root.geometry("900x610")
+    root.minsize(860, 580)
 
     COLORS = {
-        "bg": "#141414",
-        "panel": "#1c1c1c",
-        "panel2": "#242424",
-        "text": "#f3efe8",
+        "bg": "#111111",
+        "panel": "#1a1a1a",
+        "panel2": "#232323",
+        "panel3": "#2b2b2b",
+        "text": "#f4efe7",
         "muted": "#c9b8a3",
         "accent": "#c97a2b",
-        "accent_hover": "#dd8a36",
-        "accent_dark": "#8d5317",
+        "accent_hover": "#de8c38",
+        "accent_press": "#a55f1b",
+        "accent_dark": "#7f4814",
         "border": "#3a2a1d",
-        "entry": "#101010",
+        "entry": "#0f0f0f",
+        "success": "#6bbf59",
+        "danger": "#d06060",
+        "soft": "#353535",
     }
 
     root.configure(bg=COLORS["bg"])
@@ -748,67 +753,13 @@ def launch_gui() -> None:
     style.theme_use("clam")
 
     default_font = ("Segoe UI", 10)
-    title_font = ("Segoe UI Semibold", 18)
+    title_font = ("Segoe UI Semibold", 20)
     subtitle_font = ("Segoe UI", 10)
     section_font = ("Segoe UI Semibold", 10)
     small_font = ("Segoe UI", 9)
 
     style.configure(
-        ".",
-        background=COLORS["bg"],
-        foreground=COLORS["text"],
-        font=default_font,
-    )
-
-    style.configure(
-        "App.TFrame",
-        background=COLORS["bg"],
-    )
-    style.configure(
-        "Panel.TFrame",
-        background=COLORS["panel"],
-        relief="flat",
-    )
-    style.configure(
-        "Header.TFrame",
-        background=COLORS["panel2"],
-        relief="flat",
-    )
-
-    style.configure(
-        "TLabel",
-        background=COLORS["bg"],
-        foreground=COLORS["text"],
-        font=default_font,
-    )
-    style.configure(
-        "HeaderTitle.TLabel",
-        background=COLORS["panel2"],
-        foreground=COLORS["text"],
-        font=title_font,
-    )
-    style.configure(
-        "HeaderSub.TLabel",
-        background=COLORS["panel2"],
-        foreground=COLORS["muted"],
-        font=subtitle_font,
-    )
-    style.configure(
-        "Section.TLabelframe",
-        background=COLORS["panel"],
-        foreground=COLORS["accent"],
-        borderwidth=1,
-        relief="solid",
-    )
-    style.configure(
-        "Section.TLabelframe.Label",
-        background=COLORS["panel"],
-        foreground=COLORS["accent"],
-        font=section_font,
-    )
-
-    style.configure(
-        "TEntry",
+        "Dark.TEntry",
         fieldbackground=COLORS["entry"],
         background=COLORS["entry"],
         foreground=COLORS["text"],
@@ -816,57 +767,8 @@ def launch_gui() -> None:
         lightcolor=COLORS["border"],
         darkcolor=COLORS["border"],
         insertcolor=COLORS["text"],
-        padding=6,
-    )
-
-    style.configure(
-        "TCheckbutton",
-        background=COLORS["panel"],
-        foreground=COLORS["text"],
-        font=default_font,
-    )
-    style.map(
-        "TCheckbutton",
-        background=[("active", COLORS["panel"])],
-        foreground=[("disabled", "#888888"), ("active", COLORS["text"])],
-    )
-
-    style.configure(
-        "Browse.TButton",
-        background=COLORS["panel2"],
-        foreground=COLORS["text"],
-        bordercolor=COLORS["border"],
-        lightcolor=COLORS["border"],
-        darkcolor=COLORS["border"],
-        padding=(10, 7),
-    )
-    style.map(
-        "Browse.TButton",
-        background=[("active", "#2d2d2d"), ("pressed", "#2a2a2a")],
-        foreground=[("active", COLORS["text"])],
-    )
-
-    style.configure(
-        "Accent.TButton",
-        background=COLORS["accent"],
-        foreground="#ffffff",
-        bordercolor=COLORS["accent_dark"],
-        lightcolor=COLORS["accent"],
-        darkcolor=COLORS["accent_dark"],
-        padding=(12, 8),
-        font=("Segoe UI Semibold", 10),
-    )
-    style.map(
-        "Accent.TButton",
-        background=[("active", COLORS["accent_hover"]), ("pressed", COLORS["accent_dark"])],
-        foreground=[("active", "#ffffff"), ("pressed", "#ffffff")],
-    )
-
-    style.configure(
-        "Footer.TLabel",
-        background=COLORS["bg"],
-        foreground=COLORS["muted"],
-        font=small_font,
+        padding=7,
+        relief="flat",
     )
 
     vars_ = {
@@ -882,10 +784,95 @@ def launch_gui() -> None:
         "write_iso": tk.BooleanVar(value=False),
     }
 
+    status_var = tk.StringVar(value="Ready. Choose files or auto-detect a Gerber folder.")
+
+    def set_status(message: str) -> None:
+        status_var.set(message)
+        root.update_idletasks()
+
+    def make_button(parent, text, command, variant="secondary", width=None):
+        if variant == "primary":
+            bg = COLORS["accent"]
+            fg = "#ffffff"
+            hover = COLORS["accent_hover"]
+            pressed = COLORS["accent_press"]
+            border = COLORS["accent_dark"]
+        elif variant == "ghost":
+            bg = COLORS["bg"]
+            fg = COLORS["muted"]
+            hover = COLORS["panel2"]
+            pressed = COLORS["panel3"]
+            border = COLORS["soft"]
+        else:
+            bg = COLORS["panel3"]
+            fg = COLORS["text"]
+            hover = "#343434"
+            pressed = "#2b2b2b"
+            border = COLORS["border"]
+
+        btn = tk.Button(
+            parent,
+            text=text,
+            command=command,
+            bg=bg,
+            fg=fg,
+            activebackground=hover,
+            activeforeground=fg,
+            relief="flat",
+            bd=0,
+            padx=14,
+            pady=8,
+            font=("Segoe UI Semibold", 10) if variant == "primary" else ("Segoe UI", 10),
+            cursor="hand2",
+            width=width,
+            highlightthickness=1,
+            highlightbackground=border,
+            highlightcolor=border,
+        )
+
+        def on_enter(_event):
+            btn.configure(bg=hover)
+
+        def on_leave(_event):
+            btn.configure(bg=bg)
+
+        def on_press(_event):
+            btn.configure(bg=pressed)
+
+        def on_release(_event):
+            if btn.winfo_containing(root.winfo_pointerx(), root.winfo_pointery()) == btn:
+                btn.configure(bg=hover)
+            else:
+                btn.configure(bg=bg)
+
+        btn.bind("<Enter>", on_enter)
+        btn.bind("<Leave>", on_leave)
+        btn.bind("<ButtonPress-1>", on_press)
+        btn.bind("<ButtonRelease-1>", on_release)
+        return btn
+
+    def make_check(parent, text, variable):
+        cb = tk.Checkbutton(
+            parent,
+            text=text,
+            variable=variable,
+            bg=COLORS["panel"],
+            fg=COLORS["text"],
+            activebackground=COLORS["panel"],
+            activeforeground=COLORS["text"],
+            selectcolor=COLORS["panel2"],
+            bd=0,
+            highlightthickness=0,
+            font=default_font,
+            cursor="hand2",
+        )
+        return cb
+
     def browse_file(target: str, title: str):
         path = filedialog.askopenfilename(title=title)
         if path:
             vars_[target].set(path)
+            set_status(f"Loaded {os.path.basename(path)}")
 
     def browse_drills():
         paths = filedialog.askopenfilenames(
@@ -894,6 +881,7 @@ def launch_gui() -> None:
         )
         if paths:
             vars_["drills"].set(";".join(paths))
+            set_status(f"Loaded {len(paths)} drill file(s)")
 
     def autodetect():
         folder = filedialog.askdirectory(title="Select Gerber folder")
@@ -905,6 +893,24 @@ def launch_gui() -> None:
         vars_["outline"].set(found.get("board_outline") or "")
         vars_["drills"].set(";".join(found.get("drills") or []))
         vars_["output"].set(os.path.join(folder, "pcb_complete.dxf"))
+
+        found_count = sum(
+            1 for item in [
+                found.get("top_copper"),
+                found.get("bottom_copper"),
+                found.get("board_outline"),
+            ] if item
+        ) + len(found.get("drills") or [])
+
+        set_status(f"Auto-detected files in {os.path.basename(folder)} ({found_count} item(s))")
+
+    def clear_paths():
+        vars_["top"].set("")
+        vars_["bottom"].set("")
+        vars_["outline"].set("")
+        vars_["drills"].set("")
+        vars_["output"].set(os.path.abspath("pcb_complete.dxf"))
+        set_status("Cleared selected files.")
 
     def export_now():
         drills = [d for d in vars_["drills"].get().split(";") if d]
@@ -921,10 +927,12 @@ def launch_gui() -> None:
             file_dict["board_outline"],
             file_dict["drills"],
         ]):
-            messagebox.showerror("Missing files", "Please select at least one Gerber or drill file.")
+            messagebox.showerror("Missing files", "Please select at least one Gerber or drill file.", parent=root)
+            set_status("Export blocked: no files selected.")
             return
 
         try:
+            set_status("Exporting DXF...")
             process_pcb_to_dxf(
                 file_dict,
                 vars_["output"].get(),
@@ -934,14 +942,49 @@ def launch_gui() -> None:
                 include_isolation=vars_["write_iso"].get(),
                 include_copper_regions=vars_["include_copper_regions"].get(),
             )
-            messagebox.showinfo("Done", f"DXF exported:\n{vars_['output'].get()}")
+            set_status(f"Export complete: {os.path.basename(vars_['output'].get())}")
+            messagebox.showinfo("Done", f"DXF exported:\n{vars_['output'].get()}", parent=root)
         except Exception as exc:
-            messagebox.showerror("Export failed", str(exc))
+            set_status("Export failed.")
+            messagebox.showerror("Export failed", str(exc), parent=root)
 
-    app = ttk.Frame(root, style="App.TFrame", padding=16)
+    def add_file_row(parent, row, label, key, button_text, callback):
+        lbl = tk.Label(
+            parent,
+            text=label,
+            bg=COLORS["panel"],
+            fg=COLORS["text"],
+            font=default_font,
+            anchor="w",
+        )
+        lbl.grid(row=row, column=0, sticky="w", pady=7)
+
+        entry = ttk.Entry(parent, textvariable=vars_[key], style="Dark.TEntry", width=78)
+        entry.grid(row=row, column=1, sticky="ew", padx=12)
+
+        btn = make_button(parent, button_text, callback, variant="secondary", width=11)
+        btn.grid(row=row, column=2, sticky="e")
+
+    root.bind("<Control-e>", lambda _e: export_now())
+    root.bind("<Control-d>", lambda _e: autodetect())
+    root.bind("<Control-l>", lambda _e: clear_paths())
+    root.bind("<Escape>", lambda _e: root.destroy())
+
+    app = tk.Frame(root, bg=COLORS["bg"], padx=16, pady=14)
     app.pack(fill="both", expand=True)
 
-    header = ttk.Frame(app, style="Header.TFrame", padding=(14, 12))
+    top_bar = tk.Frame(app, bg=COLORS["accent"], height=3)
+    top_bar.pack(fill="x", pady=(0, 10))
+    top_bar.pack_propagate(False)
+
+    header = tk.Frame(
+        app,
+        bg=COLORS["panel2"],
+        padx=16,
+        pady=14,
+        highlightthickness=1,
+        highlightbackground=COLORS["border"],
+    )
     header.pack(fill="x", pady=(0, 14))
 
     logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prickly_guy_small.png")
@@ -949,8 +992,7 @@ def launch_gui() -> None:
     if os.path.exists(logo_path):
         try:
             root._logo_img_full = tk.PhotoImage(file=logo_path)
-            root._logo_img = root._logo_img_full.subsample(2, 2)  # 128 -> 64 px
-
+            root._logo_img = root._logo_img_full.subsample(2, 2)
             logo_label = tk.Label(
                 header,
                 image=root._logo_img,
@@ -958,139 +1000,177 @@ def launch_gui() -> None:
                 bd=0,
                 highlightthickness=0,
             )
-            logo_label.grid(row=0, column=0, rowspan=2, padx=(0, 12), sticky="w")
-
+            logo_label.grid(row=0, column=0, rowspan=2, padx=(0, 14), sticky="w")
             try:
                 root.iconphoto(True, root._logo_img_full)
             except Exception:
                 pass
-
             logo_loaded = True
         except Exception:
             logo_loaded = False
 
     title_col = 1 if logo_loaded else 0
-    ttk.Label(header, text="Gerber to DXF by The Prickly Guy", style="HeaderTitle.TLabel").grid(
-        row=0, column=title_col, sticky="w"
-    )
-    ttk.Label(
+
+    tk.Label(
         header,
-        text="Making it cool to be 'Prickly' enjoy the VCarve workflow",
-        style="HeaderSub.TLabel",
-    ).grid(row=1, column=title_col, sticky="w", pady=(2, 0))
+        text="Gerber to DXF by The Prickly Guy",
+        bg=COLORS["panel2"],
+        fg=COLORS["text"],
+        font=title_font,
+        anchor="w",
+    ).grid(row=0, column=title_col, sticky="w")
+
+    tk.Label(
+        header,
+        text="Dark copper mode for the VCarve workflow",
+        bg=COLORS["panel2"],
+        fg=COLORS["muted"],
+        font=subtitle_font,
+        anchor="w",
+    ).grid(row=1, column=title_col, sticky="w", pady=(4, 0))
+
+    badge = tk.Label(
+        header,
+        text="CNC APP",
+        bg=COLORS["accent_dark"],
+        fg="#ffffff",
+        font=("Segoe UI Semibold", 9),
+        padx=10,
+        pady=4,
+    )
+    badge.grid(row=0, column=title_col + 1, rowspan=2, sticky="e", padx=(12, 0))
+
     header.columnconfigure(title_col, weight=1)
 
-    files_frame = ttk.LabelFrame(app, text="Project files", style="Section.TLabelframe", padding=14)
+    files_frame = tk.LabelFrame(
+        app,
+        text="Project files",
+        bg=COLORS["panel"],
+        fg=COLORS["accent"],
+        font=section_font,
+        padx=14,
+        pady=12,
+        bd=1,
+        relief="solid",
+        highlightbackground=COLORS["border"],
+    )
     files_frame.pack(fill="x", pady=(0, 12))
-
-    def add_file_row(parent, row, label, key, button_text, callback):
-        ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", pady=6)
-        ttk.Entry(parent, textvariable=vars_[key], width=78).grid(
-            row=row, column=1, sticky="ew", padx=10
-        )
-        ttk.Button(parent, text=button_text, style="Browse.TButton", command=callback).grid(
-            row=row, column=2, sticky="e"
-        )
 
     add_file_row(files_frame, 0, "Top copper", "top", "Browse", lambda: browse_file("top", "Select top copper Gerber"))
     add_file_row(files_frame, 1, "Bottom copper", "bottom", "Browse", lambda: browse_file("bottom", "Select bottom copper Gerber"))
     add_file_row(files_frame, 2, "Board outline", "outline", "Browse", lambda: browse_file("outline", "Select board outline Gerber"))
 
-    ttk.Label(files_frame, text="Drill files").grid(row=3, column=0, sticky="w", pady=6)
-    ttk.Entry(files_frame, textvariable=vars_["drills"], width=78).grid(
-        row=3, column=1, sticky="ew", padx=10
+    tk.Label(files_frame, text="Drill files", bg=COLORS["panel"], fg=COLORS["text"], font=default_font).grid(
+        row=3, column=0, sticky="w", pady=7
     )
-    ttk.Button(files_frame, text="Select", style="Browse.TButton", command=browse_drills).grid(
+    ttk.Entry(files_frame, textvariable=vars_["drills"], style="Dark.TEntry", width=78).grid(
+        row=3, column=1, sticky="ew", padx=12
+    )
+    make_button(files_frame, "Select", browse_drills, variant="secondary", width=11).grid(
         row=3, column=2, sticky="e"
     )
 
-    ttk.Label(files_frame, text="Output DXF").grid(row=4, column=0, sticky="w", pady=6)
-    ttk.Entry(files_frame, textvariable=vars_["output"], width=78).grid(
-        row=4, column=1, sticky="ew", padx=10
+    tk.Label(files_frame, text="Output DXF", bg=COLORS["panel"], fg=COLORS["text"], font=default_font).grid(
+        row=4, column=0, sticky="w", pady=7
     )
-    ttk.Button(
+    ttk.Entry(files_frame, textvariable=vars_["output"], style="Dark.TEntry", width=78).grid(
+        row=4, column=1, sticky="ew", padx=12
+    )
+    make_button(
         files_frame,
-        text="Save as",
-        style="Browse.TButton",
-        command=lambda: vars_["output"].set(
+        "Save as",
+        lambda: vars_["output"].set(
             filedialog.asksaveasfilename(
                 defaultextension=".dxf",
                 filetypes=[("DXF", "*.dxf")],
             ) or vars_["output"].get()
         ),
+        variant="secondary",
+        width=11,
     ).grid(row=4, column=2, sticky="e")
 
     files_frame.columnconfigure(1, weight=1)
 
-    opts = ttk.LabelFrame(app, text="Processing options", style="Section.TLabelframe", padding=14)
+    opts = tk.LabelFrame(
+        app,
+        text="Processing options",
+        bg=COLORS["panel"],
+        fg=COLORS["accent"],
+        font=section_font,
+        padx=14,
+        pady=12,
+        bd=1,
+        relief="solid",
+        highlightbackground=COLORS["border"],
+    )
     opts.pack(fill="x", pady=(0, 12))
 
-    ttk.Label(opts, text="Isolation offset (mm)").grid(row=0, column=0, sticky="w", pady=(0, 8))
-    ttk.Entry(opts, textvariable=vars_["isolation"], width=12).grid(row=0, column=1, sticky="w", padx=(8, 24))
-
-    ttk.Label(opts, text="Fallback trace width (mm)").grid(row=0, column=2, sticky="w", pady=(0, 8))
-    ttk.Entry(opts, textvariable=vars_["default_width"], width=12).grid(row=0, column=3, sticky="w", padx=(8, 0))
-
-    ttk.Checkbutton(
-        opts,
-        text="Include copper fill regions",
-        variable=vars_["include_copper_regions"],
-    ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 0))
-
-    ttk.Checkbutton(
-        opts,
-        text="Generate isolation contour layers (*_ISO)",
-        variable=vars_["write_iso"],
-    ).grid(row=1, column=2, columnspan=2, sticky="w", pady=(6, 0))
-
-    ttk.Checkbutton(
-        opts,
-        text="Use regions only (ignore stroke traces)",
-        variable=vars_["regions_only"],
-    ).grid(row=2, column=0, columnspan=4, sticky="w", pady=(8, 0))
-
-    actions = ttk.Frame(app, style="App.TFrame")
-    actions.pack(fill="x", pady=(6, 4))
-
-    auto_btn = tk.Button(
-        actions,
-        text="Auto-detect folder",
-        command=autodetect,
-        bg=COLORS["panel2"],
-        fg=COLORS["text"],
-        activebackground="#2d2d2d",
-        activeforeground=COLORS["text"],
-        relief="flat",
-        bd=0,
-        padx=14,
-        pady=8,
-        font=("Segoe UI", 10),
-        cursor="hand2",
+    tk.Label(opts, text="Isolation offset (mm)", bg=COLORS["panel"], fg=COLORS["text"], font=default_font).grid(
+        row=0, column=0, sticky="w", pady=(0, 10)
     )
-    auto_btn.pack(side="left")
-
-    export_btn = tk.Button(
-        actions,
-        text="Export DXF",
-        command=export_now,
-        bg=COLORS["accent"],
-        fg="#ffffff",
-        activebackground=COLORS["accent_hover"],
-        activeforeground="#ffffff",
-        relief="flat",
-        bd=0,
-        padx=16,
-        pady=8,
-        font=("Segoe UI Semibold", 10),
-        cursor="hand2",
+    ttk.Entry(opts, textvariable=vars_["isolation"], style="Dark.TEntry", width=12).grid(
+        row=0, column=1, sticky="w", padx=(8, 24)
     )
-    export_btn.pack(side="right")
 
-    ttk.Label(
+    tk.Label(opts, text="Fallback trace width (mm)", bg=COLORS["panel"], fg=COLORS["text"], font=default_font).grid(
+        row=0, column=2, sticky="w", pady=(0, 10)
+    )
+    ttk.Entry(opts, textvariable=vars_["default_width"], style="Dark.TEntry", width=12).grid(
+        row=0, column=3, sticky="w", padx=(8, 0)
+    )
+
+    make_check(opts, "Include copper fill regions", vars_["include_copper_regions"]).grid(
+        row=1, column=0, columnspan=2, sticky="w", pady=(4, 0)
+    )
+    make_check(opts, "Generate isolation contour layers (*_ISO)", vars_["write_iso"]).grid(
+        row=1, column=2, columnspan=2, sticky="w", pady=(4, 0)
+    )
+    make_check(opts, "Use regions only (ignore stroke traces)", vars_["regions_only"]).grid(
+        row=2, column=0, columnspan=4, sticky="w", pady=(8, 0)
+    )
+
+    actions = tk.Frame(app, bg=COLORS["bg"])
+    actions.pack(fill="x", pady=(2, 8))
+
+    left_actions = tk.Frame(actions, bg=COLORS["bg"])
+    left_actions.pack(side="left")
+
+    right_actions = tk.Frame(actions, bg=COLORS["bg"])
+    right_actions.pack(side="right")
+
+    make_button(left_actions, "Auto-detect folder", autodetect, variant="secondary").pack(side="left")
+    tk.Frame(left_actions, bg=COLORS["bg"], width=8).pack(side="left")
+    make_button(left_actions, "Clear", clear_paths, variant="ghost", width=10).pack(side="left")
+
+    make_button(right_actions, "Export DXF", export_now, variant="primary", width=14).pack(side="right")
+
+    status_frame = tk.Frame(
         app,
-        text="Prickly Guy copper mode: keep pours off for CNC boards unless you really need them.",
-        style="Footer.TLabel",
-    ).pack(anchor="w", pady=(10, 0))
+        bg=COLORS["panel2"],
+        padx=12,
+        pady=8,
+        highlightthickness=1,
+        highlightbackground=COLORS["border"],
+    )
+    status_frame.pack(fill="x", pady=(8, 0))
+
+    tk.Label(
+        status_frame,
+        textvariable=status_var,
+        bg=COLORS["panel2"],
+        fg=COLORS["muted"],
+        font=small_font,
+        anchor="w",
+    ).pack(side="left", fill="x", expand=True)
+
+    tk.Label(
+        status_frame,
+        text="Ctrl+D Auto-detect   •   Ctrl+E Export   •   Ctrl+L Clear   •   Esc Exit",
+        bg=COLORS["panel2"],
+        fg=COLORS["muted"],
+        font=small_font,
+        anchor="e",
+    ).pack(side="right")
 
     root.mainloop()
 
