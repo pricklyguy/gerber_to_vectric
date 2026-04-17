@@ -612,10 +612,10 @@ def process_pcb_to_dxf(
     file_dict: dict,
     output_file: str,
     use_only_regions: bool = False,
-    default_trace_width: float = 0.25,
-    isolation_offset: float = 0.20,
+    default_trace_width: float = 1.25,
+    isolation_offset: float = 0.10,
     include_isolation: bool = True,
-    include_copper_regions=vars_["include_copper_regions"].get(),
+    include_copper_regions: bool = False,
 ) -> None:
     exporter = DXFExporter(default_trace_width=default_trace_width, isolation_offset=isolation_offset)
 
@@ -782,6 +782,7 @@ def launch_gui() -> None:
                 default_trace_width=vars_["default_width"].get(),
                 isolation_offset=vars_["isolation"].get(),
                 include_isolation=vars_["write_iso"].get(),
+                include_copper_regions=vars_["include_copper_regions"].get(),
             )
             messagebox.showinfo("Done", f"DXF exported:\n{vars_['output'].get()}")
         except Exception as exc:  # pragma: no cover - GUI path
