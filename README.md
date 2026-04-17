@@ -11,6 +11,15 @@ This project was built for the real-world CNC crowd: people making prototype boa
 
 ---
 
+## Quick Start
+
+1. [Download the script](#getting-the-script) and save it somewhere on your PC
+2. [Install the requirements](#install-requirements) — Python 3.10+ and two packages
+3. Double-click the script (Windows) or run `python export_script.py` from a terminal
+4. Load your Gerber files in the GUI and click **Export DXF**
+
+---
+
 ## Features
 
 - Parses **Gerber RS-274X** copper layers
@@ -20,9 +29,7 @@ This project was built for the real-world CNC crowd: people making prototype boa
   - flashed pads
   - drill holes
   - board outline
-- Supports:
-  - **GUI mode**
-  - **CLI mode**
+- Supports **GUI mode** and **CLI mode**
 - Auto-detects common top, bottom, outline, and drill files
 - Uses **Shapely** to convert traces into real copper-width polygons
 - Includes options for:
@@ -32,84 +39,75 @@ This project was built for the real-world CNC crowd: people making prototype boa
 
 ---
 
-
 ## Screenshots
 
-GUI screenshot:
-
+GUI:
 
 ![Prickly Gerber to DXF GUI](https://raw.githubusercontent.com/pricklyguy/gerber_to_vectric/main/doc/images/gui_main.png)
 
+VCarve Pro import result:
 
-VCarve Pro import:
-
-
-![DXF imported into VCarve]([docs/vcarve_import.png](https://raw.githubusercontent.com/pricklyguy/gerber_to_vectric/main/doc/images/vcarve_import.png))
-
+![DXF imported into VCarve](https://raw.githubusercontent.com/pricklyguy/gerber_to_vectric/main/doc/images/vcarve_import.png)
 
 ---
 
-## Best use case
+## Getting the Script
 
-This tool currently works best for:
-
-- simple 1-layer or 2-layer hobby boards
-- power / utility boards
-- wide traces
-- through-hole workflows
-- CNC-first PCB designs
-- VCarve / Vectric import workflows
-
-For boards you plan to mill yourself, you’ll usually get the cleanest results by:
-
-- using wider traces
-- increasing clearances
-- keeping geometry simple
-- avoiding solid copper pours unless you really need them
+On this GitHub page, click the script file name, then click the **Raw** button, then right-click the page and choose **Save As** to download it. Save it to whatever folder makes sense — a dedicated project folder works well.
 
 ---
 
+## Install Requirements
 
+You need **Python 3.10 or newer** and two packages: `ezdxf` and `shapely`.
 
----
+### Install Python (if you don't have it)
 
-## Requirements
+Download from [python.org](https://www.python.org/downloads/). During install, **check the box that says "Add Python to PATH"** — this saves a lot of trouble later.
 
-- Python 3.10+
-- `ezdxf`
-- `shapely`
+### Install the packages
 
-## Install:
+Open PowerShell or a terminal, and run:
 
-Download the script and save it to whatever file/folder you want it in.  
-From Windows you can double click and open from there. (you must associate it with python, once)
-
-![Prickly Gerber to DXF GUI](doc/associate.png)
-
-From PowerShell cd into the folder/directory you saved it in.
-Make sure requirements are installed (Python, ezdxf, shapely)
-run this command: python *script_name*.py
-
-![Prickly Gerber to DXF GUI](doc/powershell.png)
-
-That's it.
 ```bash
 pip install ezdxf shapely
 ```
 
-Or:
-
-```bash
-pip install -r requirements.txt
-```
+That's it for setup.
 
 ---
 
-## Running the app
+## Running the App (Windows)
 
-### GUI mode
+### Option 1 — Double-click (easiest)
 
-Run with no arguments:
+You can double-click `export_script.py` directly to launch the GUI. The first time you do this, Windows will ask what program to open it with — choose Python.
+
+If you haven't associated `.py` files with Python yet, here's how:
+
+![Associate .py files with Python](https://raw.githubusercontent.com/pricklyguy/gerber_to_vectric/main/doc/images/associate.png)
+
+### Option 2 — PowerShell
+
+Open PowerShell, navigate to the folder where you saved the script, and run:
+
+```bash
+python export_script.py
+```
+
+![Running from PowerShell](https://raw.githubusercontent.com/pricklyguy/gerber_to_vectric/main/doc/images/powershell.png)
+
+---
+
+## Running the App (Linux)
+
+*(Coming soon)*
+
+---
+
+## GUI Mode
+
+Run with no arguments (or double-click):
 
 ```bash
 python export_script.py
@@ -121,7 +119,7 @@ Or explicitly:
 python export_script.py --gui
 ```
 
-### CLI mode
+## CLI Mode
 
 ```bash
 python export_script.py <gerber_directory> [output.dxf]
@@ -135,15 +133,13 @@ python export_script.py ./my_board ./my_board/pcb_complete.dxf
 
 If no output path is provided, it defaults to:
 
-```text
+```
 pcb_complete.dxf
 ```
 
 ---
 
-## GUI options
-
-The GUI supports:
+## GUI Options
 
 - Top copper
 - Bottom copper
@@ -158,92 +154,74 @@ The GUI supports:
 
 ### Notes
 
-**Include copper fill regions**  
+**Include copper fill regions**
 Leave this off unless you specifically need region-based copper in your export.
 
-**Generate isolation contour layers (`*_ISO`)**  
+**Generate isolation contour layers (`*_ISO`)**
 Useful when you want extra contour options in VCarve.
 
-**Fallback trace width**  
+**Fallback trace width**
 Used when the source trace aperture width is not resolved the way you want.
 
 ---
 
-## Suggested VCarve workflow
+## Suggested VCarve Workflow
 
 1. Export the DXF using this tool
 2. Import the DXF into VCarve
-3. Separate layers if needed:
-   - copper
-   - drills
-   - board outline
+3. Separate layers if needed (copper, drills, board outline)
 4. Use VCarve weld/join tools only where needed
-5. Create toolpaths for:
-   - copper isolation / contour
-   - drilling
-   - board cutout
+5. Create toolpaths for copper isolation, drilling, and board cutout
 
 ---
 
-## Auto-detected file types
+## Best Use Case
 
-The script looks for common naming patterns.
+This tool currently works best for:
 
-### Top copper
-- `.GTL`
-- `.TOP`
-- `.CMP`
-- files containing `TOPLAYER`
+- Simple 1-layer or 2-layer hobby boards
+- Power / utility boards
+- Wide traces
+- Through-hole workflows
+- CNC-first PCB designs
+- VCarve / Vectric import workflows
 
-### Bottom copper
-- `.GBL`
-- `.BOT`
-- `.SOL`
-- files containing `BOTTOMLAYER`
-
-### Board outline
-- `.GKO`
-- `.GM1`
-- `.GML`
-- files containing `OUTLINE`
-
-### Drill files
-- `.DRL`
-- `.TXT`
-- `.XLN`
+For boards you plan to mill yourself, you'll usually get the cleanest results by using wider traces, increasing clearances, keeping geometry simple, and avoiding solid copper pours unless you really need them.
 
 ---
 
+## Auto-Detected File Types
 
+The script looks for common naming patterns:
 
-## Known limitations
+| Layer | Extensions / Patterns |
+|---|---|
+| Top copper | `.GTL`, `.TOP`, `.CMP`, `TOPLAYER` |
+| Bottom copper | `.GBL`, `.BOT`, `.SOL`, `BOTTOMLAYER` |
+| Board outline | `.GKO`, `.GM1`, `.GML`, `OUTLINE` |
+| Drill files | `.DRL`, `.TXT`, `.XLN` |
+
+---
+
+## Known Limitations
 
 This is a practical CNC shop tool, not a full Gerber CAM suite.
 
-### Things that generally work well
-- simple hobby boards
-- thick traces
-- through-hole boards
-- VCarve-based workflows
+**Generally works well:** simple hobby boards, thick traces, through-hole boards, VCarve-based workflows
 
-### Things that can still be tricky
-- solid copper pours
-- region-heavy boards
-- unusual Gerber edge cases
-- very complex aperture / region combinations
-- fab-first boards that are not designed with CNC cutting in mind
+**Can still be tricky:** solid copper pours, region-heavy boards, unusual Gerber edge cases, very complex aperture/region combinations, fab-first boards not designed with CNC cutting in mind
 
 ---
 
+## Planned Improvements
 
-## Planned improvements
-
-- smarter copper region handling
-- better pad / drill edge behavior
-- optional debug preview window
-- improved DXF layer naming
-- packaged executable release
-- broader support for more Gerber exporters
+- Smarter copper region handling
+- Better pad / drill edge behavior
+- Optional debug preview window
+- Improved DXF layer naming
+- Packaged executable release
+- Broader support for more Gerber exporters
+- Linux install instructions
 
 ---
 
@@ -251,7 +229,7 @@ This is a practical CNC shop tool, not a full Gerber CAM suite.
 
 Built by **Prickly Guy** for real-world CNC PCB experiments, VCarve workflows, and that timeless shop feeling of:
 
-> “This should be simple... why is the copper angry?”
+> "This should be simple... why is the copper angry?"
 
 ---
 
@@ -259,7 +237,4 @@ Built by **Prickly Guy** for real-world CNC PCB experiments, VCarve workflows, a
 
 Always verify imported geometry before cutting.
 
-This tool can save a lot of time, but CNC + PCB work is still very much a:
-
-**measure twice, zero carefully, let the spindle scream once**  
-kind of situation.
+This tool can save a lot of time, but CNC + PCB work is still very much a **measure twice, zero carefully, let the spindle scream once** kind of situation.
