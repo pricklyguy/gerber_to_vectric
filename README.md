@@ -56,13 +56,13 @@ This tool lives in the third world:
 
 ## Screenshot
 
-Add your GUI screenshot here once you save one in the repo:
+Add GUI screenshot here once in the repo:
 
 ```md
 ![Prickly Gerber to DXF GUI](docs/gui_screenshot.png)
 ```
 
-You can also add a second image later for a VCarve import example:
+add a second image for a VCarve import example:
 
 ```md
 ![DXF imported into VCarve](docs/vcarve_import.png)
@@ -94,19 +94,7 @@ Copper pours are great for boards going to a fab house, but for CNC-milled board
 
 ---
 
-## Repository structure
 
-```text
-gerber_to_vectric/
-├── script/
-│   ├── export_script.py
-│   └── prickly_guy_small.png
-├── docs/
-│   ├── gui_screenshot.png
-│   └── vcarve_import.png
-├── requirements.txt
-└── README.md
-```
 
 ---
 
@@ -239,22 +227,7 @@ The script looks for common naming patterns.
 
 ---
 
-## Before / After idea for the repo
 
-You can add a section like this later with screenshots from your actual workflow:
-
-### Before
-- raw Gerber export
-- weird region behavior
-- cleanup needed in VCarve
-
-### After
-- traces pulled in as usable copper-width geometry
-- drills included
-- board outline included
-- far less manual cleanup
-
----
 
 ## Known limitations
 
