@@ -79,7 +79,8 @@ For boards you plan to mill yourself, you’ll usually get the cleanest results 
 - `ezdxf`
 - `shapely`
 
-Install:
+## Install:
+
 Download the script and save it to whatever file/folder you want it in.  
 From Windows you can double click and open from there. (you must associate it with python, once)
 
