@@ -33,19 +33,19 @@ This project was built for the real-world CNC crowd: people making prototype boa
 ---
 
 
-## Screenshot
+## Screenshots
 
 GUI screenshot:
 
-md
+
 ![Prickly Gerber to DXF GUI](https://raw.githubusercontent.com/pricklyguy/gerber_to_vectric/main/doc/images/gui_main.png)
 
 
-add a second image for a VCarve import example:
+VCarve Pro import:
 
-```md
+
 ![DXF imported into VCarve](docs/vcarve_import.png)
-```
+
 
 ---
 
