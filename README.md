@@ -44,7 +44,7 @@ GUI screenshot:
 VCarve Pro import:
 
 
-![DXF imported into VCarve](docs/vcarve_import.png)
+![DXF imported into VCarve]([docs/vcarve_import.png](https://raw.githubusercontent.com/pricklyguy/gerber_to_vectric/main/doc/images/vcarve_import.png))
 
 
 ---
