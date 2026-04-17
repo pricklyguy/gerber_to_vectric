@@ -248,16 +248,19 @@ class GerberParser:
             self.unit = "mm"
 
         if line.startswith("%ADD"):
-            match = re.search(r"%ADD(\d+)([CRO]),([^*]+)", line)
+            match = re.search(r"%ADD(\d+)([A-Za-z][A-Za-z0-9_]*),([^*]+)", line)
             if match:
                 num, kind, params = match.groups()
-                parts = params.split("X")
+                kind = kind.upper()
+                parts = [p.strip() for p in params.split("X") if p.strip()]
 
-                if kind == "C":
+                # Circle aperture, ignore optional hole modifiers after first value
+                if kind.startswith("C"):
                     size = float(parts[0])
                     self.apertures[num] = {"type": "circle", "size": size}
 
-                elif kind == "R":
+                # Rectangle / round-rect fallback
+                elif kind.startswith("R") or kind == "ROUNDRECT":
                     if len(parts) >= 2:
                         w = float(parts[0])
                         h = float(parts[1])
@@ -270,7 +273,8 @@ class GerberParser:
                         "height": h,
                     }
 
-                elif kind == "O":
+                # Obround
+                elif kind.startswith("O"):
                     if len(parts) >= 2:
                         w = float(parts[0])
                         h = float(parts[1])
@@ -307,9 +311,9 @@ class GerberParser:
         if line.startswith("%"):
             return
 
-        standalone_d = re.fullmatch(r"D(\d+)\*", line)
-        if standalone_d:
-            code = standalone_d.group(1)
+        aperture_or_op = re.fullmatch(r"(?:G54)?D(\d+)\*", line)
+        if aperture_or_op:
+            code = aperture_or_op.group(1)
             if code.isdigit():
                 n = int(code)
                 if n >= 10:
@@ -721,7 +725,7 @@ def launch_gui() -> None:
     from tkinter import filedialog, messagebox, ttk
 
     root = tk.Tk()
-    root.title("Gerber to DXF for VCarve")
+    root.title("Gerber to DXF for VCarve by The Prickly Guy")
     root.geometry("760x420")
 
     vars_ = {
@@ -793,7 +797,7 @@ def launch_gui() -> None:
 
     ttk.Label(
         frm,
-        text="Gerber to DXF converter (VCarve workflow)",
+        text="Prickly Guy - Gerber to DXF converter (VCarve workflow)",
         font=("Segoe UI", 13, "bold"),
     ).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
 
@@ -840,14 +844,13 @@ def launch_gui() -> None:
         opts,
         text="Include copper fill regions",
         variable=vars_["include_copper_regions"],
-    ).grid(row=2, column=0, columnspan=2, sticky="w", pady=(8, 0))
+    ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(8, 0))
 
     ttk.Checkbutton(
         opts,
         text="Generate isolation contour layers (*_ISO)",
         variable=vars_["write_iso"],
     ).grid(row=1, column=2, columnspan=2, sticky="w", pady=(8, 0))
-
     row += 1
     btns = ttk.Frame(frm)
     btns.grid(row=row, column=0, columnspan=3, sticky="e", pady=8)
