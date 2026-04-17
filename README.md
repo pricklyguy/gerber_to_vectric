@@ -1,14 +1,36 @@
 # Gerber to DXF by The Prickly Guy
 
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](#requirements)
+[![DXF](https://img.shields.io/badge/Output-DXF-c97a2b.svg)](#what-it-does)
+[![GUI](https://img.shields.io/badge/Mode-GUI%20%2B%20CLI-1f1f1f.svg)](#running-the-app)
+[![VCarve](https://img.shields.io/badge/Workflow-VCarve%20%2F%20Vectric-c97a2b.svg)](#suggested-vcarve-workflow)
+
 Convert PCB **Gerber + Excellon drill files** into a **DXF** that works well in **VCarve / Vectric** workflows.
 
-Built for CNC-milled PCB experiments where you want copper traces, pads, drills, and board outline in a format that is actually usable without a bunch of CAM gymnastics.
+This project was built for the real-world CNC crowd: people making prototype boards, power boards, utility boards, and one-off PCB jobs who want a practical path from **EasyEDA / Gerber exports** into **Vectric** without wrestling five different CAM tools first.
 
 ---
 
-## Features
+## Why this exists
 
-- Converts **Gerber RS-274X** copper layers into DXF geometry
+Most PCB tooling assumes one of two worlds:
+
+- send everything to a board house
+- use a dedicated PCB CAM workflow
+
+This tool lives in the third world:
+
+- design the board
+- export Gerbers and drill files
+- generate a DXF
+- bring it into VCarve
+- cut copper without losing your mind
+
+---
+
+## What it does
+
+- Parses **Gerber RS-274X** copper layers
 - Parses **Excellon drill** files
 - Exports:
   - copper traces
@@ -16,52 +38,75 @@ Built for CNC-milled PCB experiments where you want copper traces, pads, drills,
   - drill holes
   - board outline
 - Supports both:
-  - **GUI mode** with a dark Prickly-themed Tkinter interface
-  - **CLI mode** for quick direct use
-- Auto-detects common Gerber / Excellon file names
-- Uses **Shapely** to buffer trace centerlines into real copper-width polygons
+  - **GUI mode**
+  - **CLI mode**
+- Auto-detects common file names for:
+  - top copper
+  - bottom copper
+  - board outline
+  - drill files
+- Uses **Shapely** to buffer traces into real copper-width polygons
+- Lightly welds overlapping copper geometry for cleaner DXF output
 - Includes options for:
   - fallback trace width
-  - optional isolation contour layer generation
+  - optional isolation contour layers
   - optional copper fill region handling
 
 ---
 
-## Why this exists
+## Screenshot
 
-Most PCB export workflows are designed for sending boards to a fab house.
+Add your GUI screenshot here once you save one in the repo:
 
-This tool is for the other crowd:
+```md
+![Prickly Gerber to DXF GUI](docs/gui_screenshot.png)
+```
 
-- you designed a board in EasyEDA or a similar tool
-- you want to mill it yourself on a CNC
-- you want a DXF that imports into VCarve cleanly
-- you still want drills and board outline included
+You can also add a second image later for a VCarve import example:
 
-Basically: less fighting, more cutting.
+```md
+![DXF imported into VCarve](docs/vcarve_import.png)
+```
 
 ---
 
 ## Current sweet spot
 
-This project currently works best for:
+This tool currently works best for:
 
 - simple 1-layer or 2-layer hobby boards
-- wide traces
 - utility / power distribution boards
+- wide traces
 - through-hole drilling workflows
+- CNC-first board layouts
 - VCarve / Vectric import workflows
 
-### Recommended for CNC-milled boards
+### Best results for self-milled boards
 
-For boards you are cutting yourself, these usually behave best:
+For boards you plan to cut yourself on a CNC, these usually behave best:
 
 - **wide traces**
 - **larger clearances**
 - **simple geometry**
 - **no solid copper pour unless you really need it**
 
-Copper pours are great for fabbed boards, but they often add a bunch of region/polarity complexity that makes CNC DXF conversion more annoying than it needs to be.
+Copper pours are great for boards going to a fab house, but for CNC-milled boards they can add extra region/polarity complexity that makes export and cleanup more annoying than it needs to be.
+
+---
+
+## Repository structure
+
+```text
+gerber_to_vectric/
+├── script/
+│   ├── export_script.py
+│   └── prickly_guy_small.png
+├── docs/
+│   ├── gui_screenshot.png
+│   └── vcarve_import.png
+├── requirements.txt
+└── README.md
+```
 
 ---
 
@@ -77,7 +122,7 @@ Install dependencies:
 pip install ezdxf shapely
 ```
 
-Or, if using a `requirements.txt`:
+Or from `requirements.txt`:
 
 ```bash
 pip install -r requirements.txt
@@ -113,7 +158,7 @@ Example:
 python script/export_script.py ./my_board ./my_board/pcb_complete.dxf
 ```
 
-If no output path is provided, the script defaults to:
+If no output path is provided, it defaults to:
 
 ```text
 pcb_complete.dxf
@@ -138,14 +183,14 @@ The GUI supports:
 
 ### Notes
 
-- **Include copper fill regions**  
-  Leave this off unless you need it.
+**Include copper fill regions**  
+Leave this off unless you specifically need region-based copper in your export.
 
-- **Generate isolation contour layers (`*_ISO`)**  
-  Useful if you want extra contour options in VCarve.
+**Generate isolation contour layers (`*_ISO`)**  
+Useful when you want extra contour options in VCarve.
 
-- **Fallback trace width**  
-  Used when the source trace aperture width is not resolved the way you want.
+**Fallback trace width**  
+Used when the source trace aperture width is not resolved the way you want.
 
 ---
 
@@ -157,8 +202,8 @@ The GUI supports:
    - copper
    - drills
    - board outline
-4. Use VCarve weld/join tools only where necessary
-5. Create your toolpaths:
+4. Use VCarve weld/join tools only where needed
+5. Create toolpaths for:
    - copper isolation / contour
    - drilling
    - board cutout
@@ -194,22 +239,39 @@ The script looks for common naming patterns.
 
 ---
 
+## Before / After idea for the repo
+
+You can add a section like this later with screenshots from your actual workflow:
+
+### Before
+- raw Gerber export
+- weird region behavior
+- cleanup needed in VCarve
+
+### After
+- traces pulled in as usable copper-width geometry
+- drills included
+- board outline included
+- far less manual cleanup
+
+---
+
 ## Known limitations
 
-This is a practical shop tool, not a full Gerber CAM suite.
+This is a practical CNC shop tool, not a full Gerber CAM suite.
 
 ### Things that generally work well
 - simple hobby boards
 - thick traces
 - through-hole boards
-- VCarve-based CNC workflows
+- VCarve-based workflows
 
 ### Things that can still be tricky
 - solid copper pours
 - region-heavy boards
 - unusual Gerber edge cases
 - very complex aperture / region combinations
-- designs intended purely for fab-first workflows
+- fab-first boards that are not designed with CNC cutting in mind
 
 ---
 
@@ -217,53 +279,31 @@ This is a practical shop tool, not a full Gerber CAM suite.
 
 For boards you plan to cut yourself:
 
-- use wider traces than you would for a fab house
-- increase trace clearance
-- avoid copper pours unless needed
+- use wider traces than you would for fab
+- increase copper clearance
+- avoid copper pours unless truly needed
 - keep geometry simple
 - test on scrap first
+- preview the DXF before committing a real board
 
 ---
 
-## Example project structure
-
-```text
-gerber_to_vectric/
-├── script/
-│   ├── export_script.py
-│   └── prickly_guy_small.png
-├── requirements.txt
-└── README.md
-```
-
----
-
-## Roadmap ideas
+## Planned improvements
 
 - smarter copper region handling
-- better drill/pad edge behavior
+- better pad / drill edge behavior
 - optional debug preview window
-- better DXF layer naming
+- improved DXF layer naming
 - packaged executable release
 - broader support for more Gerber exporters
 
 ---
 
-## Screenshot
-
-_Add a screenshot of the GUI here once you are ready._
-
-Example GitHub markdown:
-
-```md
-![Prickly Gerber to DXF GUI](docs/gui_screenshot.png)
-```
-
----
-
 ## Credits
 
-Built by **Prickly Guy** for real-world CNC PCB experiments, VCarve workflows, and the timeless pursuit of making copper do what it’s told.
+Built by **Prickly Guy** for real-world CNC PCB experiments, VCarve workflows, and that timeless shop feeling of:
+
+> “This should be simple... why is the copper angry?”
 
 ---
 
@@ -273,4 +313,5 @@ Always verify imported geometry before cutting.
 
 This tool can save a lot of time, but CNC + PCB work is still very much a:
 
-**measure twice, zero carefully, let the spindle scream once** kind of situation.
+**measure twice, zero carefully, let the spindle scream once**  
+kind of situation.
