@@ -152,11 +152,11 @@ def test_vtdb_reader(tmp_path):
     con.executescript(
         """CREATE TABLE tool_geometry (id TEXT, name_format TEXT, tool_type INTEGER, units INTEGER,
              diameter REAL, included_angle REAL, flat_diameter REAL);
-           CREATE TABLE tool_tree_entry (id TEXT, tool_geometry_id TEXT, name TEXT);
+           CREATE TABLE tool_tree_entry (id TEXT, parent_group_id TEXT, tool_geometry_id TEXT, name TEXT);
            INSERT INTO tool_geometry VALUES ('a','30 deg V',4,1,0.25,30.0,0.0039370079);
            INSERT INTO tool_geometry VALUES ('b','.8mm Drill',1,0,0.8,NULL,NULL);
            INSERT INTO tool_geometry VALUES ('c','End Mill (1/8)',1,1,0.125,NULL,NULL);
-           INSERT INTO tool_tree_entry VALUES ('x','a','30 deg V');"""
+           INSERT INTO tool_tree_entry VALUES ('g',NULL,NULL,'PCB Bits'); INSERT INTO tool_tree_entry VALUES ('x','g','a','30 deg V');"""
     )
     con.commit()
     con.close()
@@ -171,3 +171,56 @@ def test_vbit_width_depth_roundtrip():
     v = Tool("v", "vbit", 6.35, 30.0, 0.1)
     assert v.v_cut_width(0.1) == pytest.approx(0.1 + 2 * 0.1 * math.tan(math.radians(15)))
     assert v.v_depth_for_width(v.v_cut_width(0.07)) == pytest.approx(0.07)
+
+
+def test_template_names_and_groups(tmp_path):
+    p = tmp_path / "t.vtdb"
+    con = sqlite3.connect(p)
+    con.executescript(
+        """CREATE TABLE tool_geometry (id TEXT, name_format TEXT, tool_type INTEGER, units INTEGER,
+             diameter REAL, included_angle REAL, flat_diameter REAL);
+           CREATE TABLE tool_tree_entry (id TEXT, parent_group_id TEXT, tool_geometry_id TEXT, name TEXT);
+           INSERT INTO tool_geometry VALUES ('a','.8mm {Tool Type}',6,0,0.8,118.0,NULL);
+           INSERT INTO tool_geometry VALUES ('b','20°, Tip {Flat Diameter} - {Diameter|F}{Units Short})',4,0,3.175,20.0,0.1);
+           INSERT INTO tool_tree_entry VALUES ('g',NULL,NULL,'PCB Bits');
+           INSERT INTO tool_tree_entry VALUES ('x','g','a',NULL);
+           INSERT INTO tool_tree_entry VALUES ('y','g','b',NULL);"""
+    )
+    con.commit()
+    con.close()
+    tools = {t.name: t for t in read_vtdb(str(p))}
+    assert tools[".8mm Drill"].kind == "drill" and tools[".8mm Drill"].group == "PCB Bits"
+    assert "20°, Tip 0.1 - 3.175mm)" in tools
+
+
+def test_detect_files(tmp_path):
+    from pcb2vectric.detect import detect_files
+
+    for n in ("Gerber_TopLayer.GTL", "Gerber_BottomLayer.GBL", "Gerber_BoardOutlineLayer.GKO"):
+        (tmp_path / n).write_text("x")
+    (tmp_path / "Drill_PTH_Through.DRL").write_text(DRILL)
+    (tmp_path / "notes.txt").write_text("hello")  # .txt that isn't Excellon must be ignored
+    d = detect_files(str(tmp_path))
+    assert d.top.endswith("TopLayer.GTL") and d.bottom.endswith("BottomLayer.GBL") and d.outline.endswith(".GKO")
+    assert [p.split("/")[-1] for p in d.drills] == ["Drill_PTH_Through.DRL"]
+
+
+def test_gui_smoke(files, monkeypatch):
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    widgets = pytest.importorskip("PySide6.QtWidgets")
+    import time
+
+    from pcb2vectric.gui.app import MainWindow
+
+    app = widgets.QApplication.instance() or widgets.QApplication([])
+    w = MainWindow()
+    w.f_top.set_path(files["top"])
+    w.f_out.set_path(files["outline"])
+    w.f_drl.set_path(files["drill"])
+    w._files_changed()
+    end = time.time() + 10
+    while w.result is None and time.time() < end:
+        app.processEvents()
+        time.sleep(0.02)
+    assert w.result is not None and "TOP" in w.result.isolation
+    assert "TOP ISOLATION" in w.sheet.toPlainText()

@@ -45,10 +45,19 @@ def _move_hole(h: Hole, dx: float, dy: float) -> Hole:
     return Hole(h.x + dx, h.y + dy, h.diameter)
 
 
-def build_job(cfg: JobConfig) -> JobResult:
+@dataclass
+class LoadedJob:
+    """Parsed geometry in original file coordinates. Slow to build, so cached by the GUI."""
+
+    copper: dict
+    outline: Optional[BaseGeometry]
+    holes: List[Hole]
+    slots: List[Slot]
+
+
+def load_job(cfg: JobConfig) -> LoadedJob:
     if not (cfg.top or cfg.bottom):
         raise ValueError("Load at least one copper layer")
-
     copper = {}
     if cfg.top:
         copper["TOP"] = gerber_io.load_copper(cfg.top)
@@ -56,7 +65,12 @@ def build_job(cfg: JobConfig) -> JobResult:
         copper["BOTTOM"] = gerber_io.load_copper(cfg.bottom)
     outline = gerber_io.load_outline(cfg.outline) if cfg.outline else None
     holes, slots = gerber_io.load_drills(*cfg.drills) if cfg.drills else ([], [])
+    return LoadedJob(copper, outline, holes, slots)
 
+
+def process_job(loaded: LoadedJob, cfg: JobConfig) -> JobResult:
+    """Place the loaded layers and generate isolation / drill plans. Fast enough to re-run on every edit."""
+    copper, outline = loaded.copper, loaded.outline
     board = outline if outline is not None else unary_union(list(copper.values())).envelope
     minx, miny, maxx, maxy = board.bounds
     dx, dy = (-minx, -miny) if cfg.zero_at_corner else (0.0, 0.0)
@@ -75,11 +89,15 @@ def build_job(cfg: JobConfig) -> JobResult:
         res.copper[side] = geom
         res.isolation[side] = generate_isolation(geom, cfg.isolation)
 
-    holes = [_move_hole(h, dx, dy) for h in holes]
-    slots = [Slot(s.x1 + dx, s.y1 + dy, s.x2 + dx, s.y2 + dy, s.diameter) for s in slots]
+    holes = [_move_hole(h, dx, dy) for h in loaded.holes]
+    slots = [Slot(s.x1 + dx, s.y1 + dy, s.x2 + dx, s.y2 + dy, s.diameter) for s in loaded.slots]
     res.drills = plan_drills(holes, slots, cfg.drill_bits)
 
     if cfg.align_holes:
         top, bot = miny + dy - cfg.align_margin, maxy + dy + cfg.align_margin
         res.align = [Hole(axis_x, top, cfg.align_diameter), Hole(axis_x, bot, cfg.align_diameter)]
     return res
+
+
+def build_job(cfg: JobConfig) -> JobResult:
+    return process_job(load_job(cfg), cfg)
