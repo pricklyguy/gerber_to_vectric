@@ -13,9 +13,9 @@ from ..job import JobResult
 
 LAYERS = [  # key, label, default-visible
     ("TOP_COPPER", "Top copper", True),
-    ("TOP_ISO", "Top isolation", True),
+    ("TOP_ISO", "Top offset passes", True),
     ("BOTTOM_COPPER", "Bottom copper (mirrored)", False),
-    ("BOTTOM_ISO", "Bottom isolation", False),
+    ("BOTTOM_ISO", "Bottom offset passes", False),
     ("OUTLINE", "Outline", True),
     ("DRILLS", "Drills", True),
     ("ALIGN", "Alignment holes", True),
@@ -77,8 +77,8 @@ class BoardView(QGraphicsView):
             c = QColor(color)
             c.setAlpha(170)
             add(f"{side}_COPPER", _poly_path(res.copper[side]), _cosmetic(color), QBrush(c), z=1)
-            iso = res.isolation[side]
-            for n, rings in enumerate(iso.passes):
+            iso = res.isolation.get(side)
+            for n, rings in enumerate(iso.passes if iso else []):
                 path = QPainterPath()
                 for ring in rings:
                     pts = list(ring.coords)
@@ -86,7 +86,7 @@ class BoardView(QGraphicsView):
                     for p in pts[1:]:
                         path.lineTo(QPointF(*p))
                 add(f"{side}_ISO", path, _cosmetic(PASS_COLORS[n % len(PASS_COLORS)]), z=2)
-            for p in iso.tight_spots:
+            for p in res.tight.get(side, []):
                 path = QPainterPath()
                 path.addEllipse(QPointF(p.x, p.y), 0.35, 0.35)
                 add("WARN", path, _cosmetic("#ff3030", 2), z=6)

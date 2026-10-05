@@ -141,8 +141,8 @@ class MainWindow(QMainWindow):
             row.changed.connect(self._files_changed)
         lv.addWidget(g)
 
-        # tools
-        g = QGroupBox("2. Tools (from your VCarve tool database)")
+        # drill bits
+        g = QGroupBox("2. Drill bits (from your VCarve tool database)")
         tl = QFormLayout(g)
         row = QHBoxLayout()
         self.db_label = QLabel("built-in defaults")
@@ -155,9 +155,6 @@ class MainWindow(QMainWindow):
         self.all_tools = QCheckBox("Show tools from every group (not just “PCB Bits”)")
         self.all_tools.toggled.connect(self._refresh_tool_widgets)
         tl.addRow(self.all_tools)
-        self.iso_tool = QComboBox()
-        self.iso_tool.currentIndexChanged.connect(self._settings_changed)
-        tl.addRow("Isolation bit", self.iso_tool)
         self.drill_list = QListWidget()
         self.drill_list.setMaximumHeight(110)
         self.drill_list.itemChanged.connect(self._settings_changed)
@@ -168,9 +165,27 @@ class MainWindow(QMainWindow):
         tl.addRow("Extra drill sizes", self.extra_drills)
         lv.addWidget(g)
 
-        # isolation
-        g = QGroupBox("3. Isolation")
-        il = QFormLayout(g)
+        # copper check
+        g = QGroupBox("3. Copper check")
+        cl = QFormLayout(g)
+        self.gap = _spin(0, 2, 0.2, 0.05, 2, " mm")
+        self.gap.valueChanged.connect(self._settings_changed)
+        cl.addRow("Warn if copper gaps are under", self.gap)
+        note = QLabel("Your VCarve offset runs on both sides of a gap, so gaps narrower than the offsets "
+                      "you plan to use will be marked in red. 0 turns this off.")
+        note.setWordWrap(True)
+        cl.addRow(note)
+        lv.addWidget(g)
+
+        # optional isolation passes
+        self.iso_group = QGroupBox("Optional: also write pre-offset isolation passes")
+        self.iso_group.setCheckable(True)
+        self.iso_group.setChecked(False)
+        self.iso_group.toggled.connect(self._settings_changed)
+        il = QFormLayout(self.iso_group)
+        self.iso_tool = QComboBox()
+        self.iso_tool.currentIndexChanged.connect(self._settings_changed)
+        il.addRow("Isolation bit", self.iso_tool)
         self.mode = QComboBox()
         self.mode.addItems(["Cut depth", "Groove width"])
         self.mode.currentIndexChanged.connect(self._mode_changed)
@@ -191,7 +206,7 @@ class MainWindow(QMainWindow):
         self.overlap = _spin(0, 90, 30, 5, 0, " %")
         self.overlap.valueChanged.connect(self._settings_changed)
         il.addRow("Pass overlap", self.overlap)
-        lv.addWidget(g)
+        lv.addWidget(self.iso_group)
 
         # board
         g = QGroupBox("4. Board")
@@ -401,6 +416,7 @@ class MainWindow(QMainWindow):
         return JobConfig(
             top=self.f_top.path(), bottom=self.f_bot.path(), outline=self.f_out.path(), drills=drills,
             isolation=IsolationSettings(cut_width=width, passes=self.passes.value(), overlap=self.overlap.value() / 100),
+            precompute_isolation=self.iso_group.isChecked(), gap_check=self.gap.value(),
             drill_bits=self._drill_sizes(), zero_at_corner=self.zero.isChecked(),
             align_holes=self.align.isChecked(), align_diameter=self.align_d.value(), align_margin=self.align_m.value(),
         )
@@ -479,10 +495,10 @@ class MainWindow(QMainWindow):
         tool, _, depth = self._cut()
         self.sheet.setPlainText(build_setup_sheet(res, cfg, tool if self._tool() else None, depth))
         self.export_btn.setEnabled(True)
-        tight = sum(len(i.tight_spots) for i in res.isolation.values())
+        tight = sum(len(v) for v in res.tight.values())
         msg = f"Board {res.width:.1f} × {res.height:.1f} mm"
         if tight:
-            msg += f"  —  {tight} tight spot(s) where copper gaps are narrower than the groove (red circles)"
+            msg += f"  —  {tight} spot(s) where copper gaps are narrower than {cfg.gap_check:g} mm (red circles)"
         self.statusBar().showMessage(msg)
 
     # ---------------------------------------------------------------- export

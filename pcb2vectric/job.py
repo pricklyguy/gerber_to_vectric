@@ -13,7 +13,7 @@ from shapely.ops import unary_union
 from . import gerber_io
 from .drills import DrillPlan, plan_drills
 from .gerber_io import Hole, Slot
-from .isolation import IsolationResult, IsolationSettings, generate_isolation
+from .isolation import IsolationResult, IsolationSettings, find_tight_spots, generate_isolation
 
 
 @dataclass
@@ -23,6 +23,8 @@ class JobConfig:
     outline: Optional[str] = None
     drills: List[str] = field(default_factory=list)
     isolation: IsolationSettings = field(default_factory=IsolationSettings)
+    precompute_isolation: bool = False  # optional: also write offset isolation passes (VCarve normally does this)
+    gap_check: float = 0.2  # warn where copper features are closer than this (mm); 0 = off
     drill_bits: List[float] = field(default_factory=lambda: [0.8, 1.0, 1.1, 1.2, 2.0, 3.0, 3.1])
     zero_at_corner: bool = True  # move board lower-left to (0, 0)
     align_holes: bool = False  # two registration holes on the flip axis (double-sided boards)
@@ -36,7 +38,8 @@ class JobResult:
     height: float
     outline: Optional[BaseGeometry] = None
     copper: dict = field(default_factory=dict)  # "TOP"/"BOTTOM" -> geometry (BOTTOM is mirrored)
-    isolation: dict = field(default_factory=dict)  # "TOP"/"BOTTOM" -> IsolationResult
+    isolation: dict = field(default_factory=dict)  # "TOP"/"BOTTOM" -> IsolationResult (only if precomputed)
+    tight: dict = field(default_factory=dict)  # "TOP"/"BOTTOM" -> list of points where copper gaps are too narrow
     drills: Optional[DrillPlan] = None
     align: List[Hole] = field(default_factory=list)
 
@@ -87,7 +90,9 @@ def process_job(loaded: LoadedJob, cfg: JobConfig) -> JobResult:
         if side == "BOTTOM":  # mirror across the flip axis, ready for the flipped setup
             geom = affinity.scale(geom, xfact=-1, yfact=1, origin=(axis_x, 0))
         res.copper[side] = geom
-        res.isolation[side] = generate_isolation(geom, cfg.isolation)
+        if cfg.precompute_isolation:
+            res.isolation[side] = generate_isolation(geom, cfg.isolation)
+        res.tight[side] = find_tight_spots(geom, cfg.gap_check) if cfg.gap_check > 0 else []
 
     holes = [_move_hole(h, dx, dy) for h in loaded.holes]
     slots = [Slot(s.x1 + dx, s.y1 + dy, s.x2 + dx, s.y2 + dy, s.diameter) for s in loaded.slots]

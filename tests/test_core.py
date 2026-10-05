@@ -128,7 +128,7 @@ def test_drill_snapping_matches_user_rule():
 
 def test_job_zero_mirror_align_and_dxf(files, tmp_path):
     cfg = JobConfig(top=files["top"], bottom=files["bottom"], outline=files["outline"], drills=[files["drill"]],
-                    align_holes=True)
+                    align_holes=True, precompute_isolation=True)
     res = build_job(cfg)
     assert (res.width, res.height) == pytest.approx((44, 14))
     assert res.outline.bounds == pytest.approx((0, 0, 44, 14))
@@ -141,7 +141,7 @@ def test_job_zero_mirror_align_and_dxf(files, tmp_path):
     write_dxf(res, str(out))
     doc = ezdxf.readfile(out)
     layers = {l.dxf.name for l in doc.layers}
-    assert {"TOP_ISO_PASS1", "TOP_ISO_PASS2", "BOTTOM_ISO_PASS1", "OUTLINE", "DRILL_0.80MM", "DRILL_1.00MM",
+    assert {"TOP_COPPER", "BOTTOM_COPPER", "TOP_ISO_PASS1", "TOP_ISO_PASS2", "BOTTOM_ISO_PASS1", "OUTLINE", "DRILL_0.80MM", "DRILL_1.00MM",
             "DRILL_MILL", "ALIGN"} <= layers
     assert doc.header["$INSUNITS"] == 4
 
@@ -222,5 +222,26 @@ def test_gui_smoke(files, monkeypatch):
     while w.result is None and time.time() < end:
         app.processEvents()
         time.sleep(0.02)
-    assert w.result is not None and "TOP" in w.result.isolation
-    assert "TOP ISOLATION" in w.sheet.toPlainText()
+    assert w.result is not None and "TOP" in w.result.copper
+    assert "TOP COPPER" in w.sheet.toPlainText()
+    assert not w.result.isolation  # passes are optional and off by default
+
+
+def test_default_export_is_real_copper_not_offset(files, tmp_path):
+    cfg = JobConfig(top=files["top"], outline=files["outline"], drills=[files["drill"]])
+    res = build_job(cfg)
+    assert res.isolation == {}
+    out = tmp_path / "c.dxf"
+    write_dxf(res, str(out))
+    doc = ezdxf.readfile(out)
+    layers = {l.dxf.name for l in doc.layers}
+    assert "TOP_COPPER" in layers and not any("ISO" in n for n in layers)
+    # the DXF copper must match the Gerber copper (no offset applied)
+    from shapely.geometry import Polygon
+
+    shape = Polygon()
+    for e in doc.modelspace().query('LWPOLYLINE[layer=="TOP_COPPER"]'):
+        shape = shape.symmetric_difference(Polygon(e.get_points("xy")))  # even-odd: holes subtract
+    raw = res.copper["TOP"]  # placed (moved to 0,0) but not offset
+    assert shape.area == pytest.approx(raw.area, rel=0.01)
+    assert shape.symmetric_difference(raw).area < 0.02 * raw.area

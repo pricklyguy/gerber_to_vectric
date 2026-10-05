@@ -11,7 +11,7 @@ from shapely.geometry.base import BaseGeometry
 from .gerber_io import _polys
 from .job import JobResult
 
-COLORS = {"ISO": 1, "OUTLINE": 5, "DRILL": 3, "ALIGN": 6, "SLOT": 4, "COPPER": 8, "WARN": 2}
+COLORS = {"ISO": 1, "OUTLINE": 5, "DRILL": 3, "ALIGN": 6, "SLOT": 4, "COPPER": 7, "WARN": 2}
 
 
 def _layer(doc, name: str, color: int) -> str:
@@ -26,22 +26,25 @@ def _add_rings(msp, geom: BaseGeometry, layer: str) -> None:
             msp.add_lwpolyline(list(ring.coords)[:-1], close=True, dxfattribs={"layer": layer})
 
 
-def write_dxf(res: JobResult, path: str, include_copper: bool = False) -> None:
+def write_dxf(res: JobResult, path: str, copper: bool = True) -> None:
+    """Copper shapes are the main output; offset isolation passes appear only if the job precomputed them."""
     doc = ezdxf.new("R2010", setup=True)
     doc.units = ezdxf.units.MM
     msp = doc.modelspace()
 
-    for side, iso in res.isolation.items():
-        for n, rings in enumerate(iso.passes, start=1):
-            layer = _layer(doc, f"{side}_ISO_PASS{n}", COLORS["ISO"] + n)
-            for ring in rings:
-                msp.add_lwpolyline(list(ring.coords)[:-1], close=True, dxfattribs={"layer": layer})
-        if iso.tight_spots:
+    for side, geom in res.copper.items():
+        if copper:
+            _add_rings(msp, geom.simplify(0.002), _layer(doc, f"{side}_COPPER", COLORS["COPPER"]))
+        iso = res.isolation.get(side)
+        if iso:
+            for n, rings in enumerate(iso.passes, start=1):
+                layer = _layer(doc, f"{side}_ISO_PASS{n}", COLORS["ISO"] + n)
+                for ring in rings:
+                    msp.add_lwpolyline(list(ring.coords)[:-1], close=True, dxfattribs={"layer": layer})
+        if res.tight.get(side):
             layer = _layer(doc, f"{side}_WARN_TIGHT", COLORS["WARN"])
-            for p in iso.tight_spots:
+            for p in res.tight[side]:
                 msp.add_circle((p.x, p.y), 0.3, dxfattribs={"layer": layer})
-        if include_copper:
-            _add_rings(msp, res.copper[side], _layer(doc, f"{side}_COPPER", COLORS["COPPER"]))
 
     if res.outline is not None:
         _add_rings(msp, res.outline, _layer(doc, "OUTLINE", COLORS["OUTLINE"]))
