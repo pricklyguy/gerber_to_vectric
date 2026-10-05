@@ -23,6 +23,7 @@ from ..setup_sheet import build_setup_sheet
 from ..tools import Tool, read_vtdb
 from .preview import LAYERS, BoardView
 
+DEFAULT_DRILLS = "0.8, 1.0, 1.1, 1.2, 2.0, 3.0, 3.1"
 BUILTIN_TOOLS = [
     Tool("30° V-bit, 0.1 mm tip (built-in)", "vbit", 3.175, 30.0, 0.1, "PCB Bits"),
     Tool("20° V-bit, 0.1 mm tip (built-in)", "vbit", 3.175, 20.0, 0.1, "PCB Bits"),
@@ -142,27 +143,21 @@ class MainWindow(QMainWindow):
         lv.addWidget(g)
 
         # drill bits
-        g = QGroupBox("2. Drill bits (from your VCarve tool database)")
+        g = QGroupBox("2. Drill bits you own (mm)")
         tl = QFormLayout(g)
+        self.drill_sizes = QLineEdit(self.settings.value("drill_sizes", DEFAULT_DRILLS))
+        self.drill_sizes.setToolTip("Each hole uses the smallest bit in this list that is big enough. "
+                                    "Holes bigger than the largest bit go to the DRILL_MILL layer.")
+        self.drill_sizes.editingFinished.connect(self._drills_edited)
+        tl.addRow(self.drill_sizes)
         row = QHBoxLayout()
-        self.db_label = QLabel("built-in defaults")
+        self.db_label = QLabel("")
         self.db_label.setWordWrap(True)
-        b = QPushButton("Load .vtdb…")
-        b.clicked.connect(self._browse_vtdb)
-        row.addWidget(self.db_label, 1)
+        b = QPushButton("Import from VCarve tool database…")
+        b.clicked.connect(self._import_drills)
         row.addWidget(b)
         tl.addRow(row)
-        self.all_tools = QCheckBox("Show tools from every group (not just “PCB Bits”)")
-        self.all_tools.toggled.connect(self._refresh_tool_widgets)
-        tl.addRow(self.all_tools)
-        self.drill_list = QListWidget()
-        self.drill_list.setMaximumHeight(110)
-        self.drill_list.itemChanged.connect(self._settings_changed)
-        tl.addRow("Drill bits you own", self.drill_list)
-        self.extra_drills = QLineEdit()
-        self.extra_drills.setPlaceholderText("extra sizes in mm, e.g. 3.1, 0.6")
-        self.extra_drills.editingFinished.connect(self._settings_changed)
-        tl.addRow("Extra drill sizes", self.extra_drills)
+        tl.addRow(self.db_label)
         lv.addWidget(g)
 
         # copper check
@@ -293,13 +288,6 @@ class MainWindow(QMainWindow):
             if p and os.path.isfile(p) and self._load_vtdb(p, quiet=True):
                 return
 
-    def _browse_vtdb(self) -> None:
-        start = self.settings.value("vtdb", "") or ""
-        path, _ = QFileDialog.getOpenFileName(self, "Vectric tool database", start, "Vectric tools (*.vtdb *.upload *.cloud);;All (*)")
-        if path:
-            self._load_vtdb(path)
-            self._refresh_tool_widgets()
-
     def _load_vtdb(self, path: str, quiet: bool = False) -> bool:
         try:
             tools = [t for t in read_vtdb(path) if t.kind in ("vbit", "endmill", "tapered", "drill")]
@@ -307,26 +295,41 @@ class MainWindow(QMainWindow):
             if not quiet:
                 QMessageBox.warning(self, "Tool database", f"Couldn't read {path}:\n{exc}")
             return False
-        if not any(t.group == "PCB Bits" for t in tools):
-            self.all_tools.setChecked(True)
         self.tools = tools
         self.settings.setValue("vtdb", path)
-        self.db_label.setText(f"{os.path.basename(path)} — {len(tools)} tools")
+        self.db_label.setText(f"Tool database: {os.path.basename(path)}")
         return True
 
+    def _import_drills(self) -> None:
+        start = self.settings.value("vtdb", "") or ""
+        path, _ = QFileDialog.getOpenFileName(self, "Vectric tool database", start, "Vectric tools (*.vtdb *.upload *.cloud);;All (*)")
+        if not path or not self._load_vtdb(path):
+            return
+        drills = [t for t in self.tools if t.kind == "drill"]
+        pcb = [t for t in drills if t.group == "PCB Bits"] or drills
+        sizes = sorted({round(t.diameter, 3) for t in pcb if 0.2 <= t.diameter <= 6.5})
+        if not sizes:
+            QMessageBox.information(self, "Drill bits", "No drill bits found in that database. Your list is unchanged.")
+        else:
+            self.drill_sizes.setText(", ".join(f"{v:g}" for v in sizes))
+            self._drills_edited()
+            self.db_label.setText(f"Imported {len(sizes)} drill sizes from {os.path.basename(path)}")
+        self._refresh_tool_widgets()
+
+    def _drills_edited(self) -> None:
+        self.settings.setValue("drill_sizes", self.drill_sizes.text())
+        self._settings_changed()
+
     def _visible_tools(self) -> List[Tool]:
-        if self.all_tools.isChecked():
-            return self.tools
         pcb = [t for t in self.tools if t.group == "PCB Bits"]
         return pcb or self.tools
 
     def _refresh_tool_widgets(self) -> None:
-        for w in (self.iso_tool, self.drill_list):
-            w.blockSignals(True)
-        tools = self._visible_tools()
+        """Fill the isolation-bit list (used only by the optional pre-offset passes)."""
+        self.iso_tool.blockSignals(True)
         prev = self.iso_tool.currentText()
         self.iso_tool.clear()
-        cuts = [t for t in tools if t.kind in ("vbit", "endmill", "tapered")]
+        cuts = [t for t in self._visible_tools() if t.kind in ("vbit", "endmill", "tapered")]
         for t in cuts:
             self.iso_tool.addItem(t.name, t)
         self.iso_tool.addItem("Custom cutter (enter groove width)", None)
@@ -335,17 +338,7 @@ class MainWindow(QMainWindow):
             v30 = [(t.tip_diameter or 99, i) for i, t in enumerate(cuts) if t.kind == "vbit" and t.included_angle == 30]
             idx = min(v30)[1] if v30 else 0
         self.iso_tool.setCurrentIndex(idx)
-
-        have = {self.drill_list.item(i).text(): self.drill_list.item(i).checkState() for i in range(self.drill_list.count())}
-        self.drill_list.clear()
-        for t in sorted((t for t in tools if t.kind == "drill"), key=lambda t: t.diameter):
-            it = QListWidgetItem(f"{t.diameter:g} mm   ({t.name})")
-            it.setData(Qt.UserRole, t.diameter)
-            it.setFlags(it.flags() | Qt.ItemIsUserCheckable)
-            it.setCheckState(have.get(it.text(), Qt.Checked))
-            self.drill_list.addItem(it)
-        for w in (self.iso_tool, self.drill_list):
-            w.blockSignals(False)
+        self.iso_tool.blockSignals(False)
         self._settings_changed()
 
     # ---------------------------------------------------------------- files
@@ -386,16 +379,15 @@ class MainWindow(QMainWindow):
         return self.iso_tool.currentData()
 
     def _drill_sizes(self) -> List[float]:
-        sizes = [self.drill_list.item(i).data(Qt.UserRole) for i in range(self.drill_list.count())
-                 if self.drill_list.item(i).checkState() == Qt.Checked]
-        for part in self.extra_drills.text().replace(";", ",").split(","):
+        sizes = []
+        for part in self.drill_sizes.text().replace(";", ",").replace(" ", ",").split(","):
             try:
                 v = float(part)
                 if v > 0:
                     sizes.append(v)
             except ValueError:
                 pass
-        return sizes or [0.8]
+        return sizes or [float(x) for x in DEFAULT_DRILLS.split(",")]
 
     def _cut(self):
         """(tool, groove_width, depth) from the current widgets."""

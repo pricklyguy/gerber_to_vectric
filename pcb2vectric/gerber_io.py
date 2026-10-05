@@ -121,7 +121,16 @@ def load_copper(path: str) -> BaseGeometry:
                 run_dark = dark
             run.append(shape)
     flush()
-    return copper
+    return drop_specks(copper)
+
+
+MIN_FEATURE_AREA = 0.001  # mm^2; smaller isolated copper is a Gerber rounding artefact, not a real feature
+
+
+def drop_specks(geom: BaseGeometry, min_area: float = MIN_FEATURE_AREA) -> BaseGeometry:
+    """Remove tiny stray polygons (invisible slivers) that would otherwise get toolpaths and false warnings."""
+    keep = [p for p in _polys(geom) if p.area >= min_area]
+    return unary_union(keep) if keep else Polygon()
 
 
 def load_outline(path: str) -> BaseGeometry:

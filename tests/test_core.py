@@ -245,3 +245,39 @@ def test_default_export_is_real_copper_not_offset(files, tmp_path):
     raw = res.copper["TOP"]  # placed (moved to 0,0) but not offset
     assert shape.area == pytest.approx(raw.area, rel=0.01)
     assert shape.symmetric_difference(raw).area < 0.02 * raw.area
+
+
+def test_stray_specks_are_dropped_and_dont_trigger_gap_warnings(tmp_path):
+    # a trace plus a ~0.01 mm sliver pad 0.1 mm away: invisible, but used to cause a "tight gap" warning
+    g = TOP.replace("%LPC*%", "%ADD13R,0.02X0.02*%\nD13*\nX20300000Y10000000D03*\n%LPC*%", 1)
+    (tmp_path / "s.gtl").write_text(g)
+    cu = gerber_io.load_copper(str(tmp_path / "s.gtl"))
+    assert len(cu.geoms) == 3  # the speck is gone
+    assert not find_tight_spots(cu, 0.2)
+
+
+def test_gui_drills_default_without_any_tool_database(files, monkeypatch, tmp_path):
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    widgets = pytest.importorskip("PySide6.QtWidgets")
+    import time
+
+    from PySide6.QtCore import QSettings
+
+    from pcb2vectric.gui.app import MainWindow
+
+    QSettings.setPath(QSettings.NativeFormat, QSettings.UserScope, str(tmp_path))  # fresh settings
+    app = widgets.QApplication.instance() or widgets.QApplication([])
+    w = MainWindow()
+    w.drill_sizes.setText("0.8, 1.0, 1.1, 1.2, 2.0, 3.0, 3.1")
+    w.tools = []  # no database loaded at all
+    w.f_top.set_path(files["top"])
+    w.f_drl.set_path(files["drill"])
+    w._files_changed()
+    end = time.time() + 10
+    while w.result is None and time.time() < end:
+        app.processEvents()
+        time.sleep(0.02)
+    assert sorted(w.result.drills.by_bit) == [0.8, 1.0]  # 0.70 -> 0.8, 1.00 -> 1.0
+    assert [h.diameter for h in w.result.drills.milled] == [3.4]
+    w.drill_sizes.setText("garbage")  # never silently collapse to a single bit
+    assert len(w._drill_sizes()) == 7
