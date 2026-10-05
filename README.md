@@ -11,6 +11,16 @@ This project was built for the real-world CNC crowd: people making prototype boa
 
 ---
 
+## New engine (in progress)
+
+`pcb2vectric/` is a rewrite aimed at CopperCAM/FlatCAM-style isolation prep, but handing the toolpathing to VCarve:
+proper Gerber parsing (arcs, polarity, regions), multi-pass isolation sized for your V-bit, drills grouped by the
+bits you own, mirrored bottom layer and alignment holes for double-sided boards, and a reader for Vectric `.vtdb`
+tool databases. Try it: `pip install -r requirements.txt && python -m pcb2vectric <gerber_dir> out.dxf --passes 3`.
+A GUI is next. The original script below still works.
+
+---
+
 ## Quick Start
 
 1. [Download the script](#getting-the-script) and save it somewhere on your PC

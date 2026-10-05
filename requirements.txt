@@ -1,2 +1,3 @@
 ezdxf==1.4.3
 shapely==2.1.2
+gerbonara>=1.5.0
