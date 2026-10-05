@@ -20,7 +20,7 @@ from ..dxf_out import write_dxf
 from ..isolation import IsolationSettings
 from ..job import JobConfig, JobResult, LoadedJob, load_job, process_job
 from ..setup_sheet import build_setup_sheet
-from ..tools import Tool, read_vtdb
+from ..tools import Tool, drill_sizes, read_vtdb
 from .preview import LAYERS, BoardView
 
 DEFAULT_DRILLS = "0.8, 1.0, 1.1, 1.2, 2.0, 3.0, 3.1"
@@ -155,7 +155,11 @@ class MainWindow(QMainWindow):
         self.db_label.setWordWrap(True)
         b = QPushButton("Import from VCarve tool database…")
         b.clicked.connect(self._import_drills)
-        row.addWidget(b)
+        row.addWidget(b, 1)
+        r = QPushButton("Reset")
+        r.setToolTip("Back to 0.8, 1.0, 1.1, 1.2, 2.0, 3.0, 3.1")
+        r.clicked.connect(self._reset_drills)
+        row.addWidget(r)
         tl.addRow(row)
         tl.addRow(self.db_label)
         lv.addWidget(g)
@@ -305,16 +309,24 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getOpenFileName(self, "Vectric tool database", start, "Vectric tools (*.vtdb *.upload *.cloud);;All (*)")
         if not path or not self._load_vtdb(path):
             return
-        drills = [t for t in self.tools if t.kind == "drill"]
-        pcb = [t for t in drills if t.group == "PCB Bits"] or drills
-        sizes = sorted({round(t.diameter, 3) for t in pcb if 0.2 <= t.diameter <= 6.5})
+        sizes, elsewhere = drill_sizes(self.tools)
+        name = os.path.basename(path)
         if not sizes:
-            QMessageBox.information(self, "Drill bits", "No drill bits found in that database. Your list is unchanged.")
+            QMessageBox.information(
+                self, "Drill bits",
+                f"{name} has no drill bits in its “PCB Bits” group ({elsewhere} drills in other groups were ignored).\n\n"
+                "Your list is unchanged. If you have another copy of the database (e.g. the file named exactly "
+                "tools.vtdb on the shop PC), try that one.")
         else:
-            self.drill_sizes.setText(", ".join(f"{v:g}" for v in sizes))
+            merged = sorted(set(self._drill_sizes()) | set(sizes))  # keep sizes you added by hand, like 3.1
+            self.drill_sizes.setText(", ".join(f"{v:g}" for v in merged))
             self._drills_edited()
-            self.db_label.setText(f"Imported {len(sizes)} drill sizes from {os.path.basename(path)}")
+            self.db_label.setText(f"Added {len(sizes)} drill sizes from {name} (“PCB Bits” group)")
         self._refresh_tool_widgets()
+
+    def _reset_drills(self) -> None:
+        self.drill_sizes.setText(DEFAULT_DRILLS)
+        self._drills_edited()
 
     def _drills_edited(self) -> None:
         self.settings.setValue("drill_sizes", self.drill_sizes.text())

@@ -281,3 +281,12 @@ def test_gui_drills_default_without_any_tool_database(files, monkeypatch, tmp_pa
     assert [h.diameter for h in w.result.drills.milled] == [3.4]
     w.drill_sizes.setText("garbage")  # never silently collapse to a single bit
     assert len(w._drill_sizes()) == 7
+
+
+def test_drill_import_uses_only_pcb_group():
+    from pcb2vectric.tools import drill_sizes
+
+    tools = [Tool("0.8", "drill", 0.8, 118, 0, "PCB Bits"), Tool("3.0", "drill", 3.0, 118, 0, "PCB Bits"),
+             Tool("crib", "drill", 3.175, 118, 0, "IDC Performance CNC Bits"), Tool("v", "vbit", 3.0, 30, 0.1, "PCB Bits")]
+    assert drill_sizes(tools) == ([0.8, 3.0], 1)
+    assert drill_sizes([tools[2]]) == ([], 1)  # nothing in PCB Bits -> nothing imported, no guessing

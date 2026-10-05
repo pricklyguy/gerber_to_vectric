@@ -104,3 +104,10 @@ def read_vtdb(path: str) -> List[Tool]:
         name = expand_name(entry_name or fmt or "?", kind, units, dia_mm, flat_mm)
         tools.append(Tool(name, kind, dia_mm, angle, flat_mm, top_group(entry_id)))
     return tools
+
+
+def drill_sizes(tools: List[Tool], group: str = "PCB Bits") -> Tuple[List[float], int]:
+    """Drill diameters (mm) from one tool group, plus how many drills sit in other groups (never mixed in)."""
+    drills = [t for t in tools if t.kind == "drill"]
+    mine = sorted({round(t.diameter, 3) for t in drills if t.group == group and 0.2 <= t.diameter <= 6.5})
+    return mine, sum(1 for t in drills if t.group != group)
