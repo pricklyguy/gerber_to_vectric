@@ -17,13 +17,14 @@ def run(argv=None) -> None:
     ap.add_argument("--cut-width", type=float, default=0.2)
     ap.add_argument("--passes", type=int, default=2)
     ap.add_argument("--overlap", type=float, default=0.3)
+    ap.add_argument("--keep-vias", action="store_true", help="drill vias and keep their pads (default: ignore)")
     ap.add_argument("--align", action="store_true")
     a = ap.parse_args(argv)
 
     d = detect_files(a.folder)
     cfg = JobConfig(top=d.top, bottom=d.bottom, outline=d.outline, drills=d.drills,
                     isolation=IsolationSettings(a.cut_width, a.passes, a.overlap), precompute_isolation=a.isolation,
-                    gap_check=a.gap_check, align_holes=a.align)
+                    gap_check=a.gap_check, skip_vias=not a.keep_vias, align_holes=a.align)
     res = build_job(cfg)
     write_dxf(res, a.out)
     print(f"Board {res.width:.2f} x {res.height:.2f} mm -> {a.out}")

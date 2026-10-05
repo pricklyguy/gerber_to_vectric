@@ -6,13 +6,13 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from shapely import affinity
-from shapely.geometry import box
+from shapely.geometry import Point, Polygon, box
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import unary_union
 
 from . import gerber_io
 from .drills import DrillPlan, plan_drills
-from .gerber_io import Hole, Slot
+from .gerber_io import Hole, Slot, _polys
 from .isolation import IsolationResult, IsolationSettings, find_tight_spots, generate_isolation
 
 
@@ -25,6 +25,8 @@ class JobConfig:
     isolation: IsolationSettings = field(default_factory=IsolationSettings)
     precompute_isolation: bool = False  # optional: also write offset isolation passes (VCarve normally does this)
     gap_check: float = 0.2  # warn where copper features are closer than this (mm); 0 = off
+    skip_vias: bool = True  # holes smaller than via_max are vias: don't drill them, drop lone via pads
+    via_max: float = 0.6  # mm
     drill_bits: List[float] = field(default_factory=lambda: [0.8, 1.0, 1.1, 1.2, 2.0, 3.0, 3.1])
     zero_at_corner: bool = True  # move board lower-left to (0, 0)
     align_holes: bool = False  # two registration holes on the flip axis (double-sided boards)
@@ -42,6 +44,8 @@ class JobResult:
     tight: dict = field(default_factory=dict)  # "TOP"/"BOTTOM" -> list of points where copper gaps are too narrow
     drills: Optional[DrillPlan] = None
     align: List[Hole] = field(default_factory=list)
+    vias_ignored: int = 0
+    via_pads_removed: int = 0
 
 
 def _move_hole(h: Hole, dx: float, dy: float) -> Hole:
@@ -71,6 +75,24 @@ def load_job(cfg: JobConfig) -> LoadedJob:
     return LoadedJob(copper, outline, holes, slots)
 
 
+LONE_VIA_MAX_EXTENT = 1.6  # mm; a copper island bigger than this isn't just a via pad
+
+
+def remove_lone_via_pads(copper: BaseGeometry, vias: List[Hole], others: List[Hole]):
+    """Drop small copper islands that exist only to carry a via. Pads on traces are left alone."""
+    keep, removed = [], 0
+    for poly in _polys(copper):
+        minx, miny, maxx, maxy = poly.bounds
+        small = max(maxx - minx, maxy - miny) <= LONE_VIA_MAX_EXTENT
+        has_via = any(poly.contains(Point(v.x, v.y)) for v in vias)
+        has_other = any(poly.contains(Point(h.x, h.y)) for h in others)
+        if small and has_via and not has_other:
+            removed += 1
+        else:
+            keep.append(poly)
+    return (unary_union(keep) if keep else Polygon()), removed
+
+
 def process_job(loaded: LoadedJob, cfg: JobConfig) -> JobResult:
     """Place the loaded layers and generate isolation / drill plans. Fast enough to re-run on every edit."""
     copper, outline = loaded.copper, loaded.outline
@@ -85,8 +107,18 @@ def process_job(loaded: LoadedJob, cfg: JobConfig) -> JobResult:
 
     res = JobResult(width=width, height=height)
     res.outline = place(outline) if outline is not None else None
+
+    holes = [_move_hole(h, dx, dy) for h in loaded.holes]
+    slots = [Slot(s.x1 + dx, s.y1 + dy, s.x2 + dx, s.y2 + dy, s.diameter) for s in loaded.slots]
+    vias = [h for h in holes if cfg.skip_vias and h.diameter < cfg.via_max]
+    holes = [h for h in holes if not (cfg.skip_vias and h.diameter < cfg.via_max)]
+    res.vias_ignored = len(vias)
+
     for side, geom in copper.items():
         geom = place(geom)
+        if vias:
+            geom, n = remove_lone_via_pads(geom, vias, holes)
+            res.via_pads_removed = max(res.via_pads_removed, n)  # top and bottom share via positions
         if side == "BOTTOM":  # mirror across the flip axis, ready for the flipped setup
             geom = affinity.scale(geom, xfact=-1, yfact=1, origin=(axis_x, 0))
         res.copper[side] = geom
@@ -94,8 +126,6 @@ def process_job(loaded: LoadedJob, cfg: JobConfig) -> JobResult:
             res.isolation[side] = generate_isolation(geom, cfg.isolation)
         res.tight[side] = find_tight_spots(geom, cfg.gap_check) if cfg.gap_check > 0 else []
 
-    holes = [_move_hole(h, dx, dy) for h in loaded.holes]
-    slots = [Slot(s.x1 + dx, s.y1 + dy, s.x2 + dx, s.y2 + dy, s.diameter) for s in loaded.slots]
     res.drills = plan_drills(holes, slots, cfg.drill_bits)
 
     if cfg.align_holes:

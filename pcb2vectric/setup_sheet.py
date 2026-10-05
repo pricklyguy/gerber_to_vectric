@@ -30,6 +30,10 @@ def build_setup_sheet(res: JobResult, cfg: JobConfig, iso_tool: Optional[Tool] =
                     f"These are already offset: Profile ON the vector, no allowance."]
         out.append("")
 
+    if res.vias_ignored:
+        out.append(f"VIAS: {res.vias_ignored} via holes (smaller than {cfg.via_max:g} mm) are not drilled"
+                   + (f"; {res.via_pads_removed} lone via pad(s) removed from the copper." if res.via_pads_removed else "."))
+        out.append("")
     if res.drills:
         for bit, holes in sorted(res.drills.by_bit.items()):
             out.append(f"DRILL {bit:.2f} mm  (layer DRILL_{bit:.2f}MM) - {len(holes)} hole(s). "

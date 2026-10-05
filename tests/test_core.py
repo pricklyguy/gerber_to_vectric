@@ -290,3 +290,49 @@ def test_drill_import_uses_only_pcb_group():
              Tool("crib", "drill", 3.175, 118, 0, "IDC Performance CNC Bits"), Tool("v", "vbit", 3.0, 30, 0.1, "PCB Bits")]
     assert drill_sizes(tools) == ([0.8, 3.0], 1)
     assert drill_sizes([tools[2]]) == ([], 1)  # nothing in PCB Bits -> nothing imported, no guessing
+
+
+VIA_TOP = """%FSLAX46Y46*%
+%MOMM*%
+%ADD10C,0.5*%
+%ADD11C,0.7*%
+G01*
+%LPD*%
+D10*
+X0Y0D02*
+X10000000Y0D01*
+D11*
+X10000000Y0D03*
+X20000000Y10000000D03*
+X30000000Y10000000D03*
+M02*
+"""
+
+VIA_DRILL = """M48
+METRIC,TZ
+T1C0.31
+T2C0.80
+%
+T1
+X10.0Y0.0
+X20.0Y10.0
+T2
+X30.0Y10.0
+M30
+"""
+
+
+def test_vias_ignored_drills_skipped_and_lone_pads_removed(tmp_path):
+    (tmp_path / "v.gtl").write_text(VIA_TOP)
+    (tmp_path / "v.drl").write_text(VIA_DRILL)
+    cfg = JobConfig(top=str(tmp_path / "v.gtl"), drills=[str(tmp_path / "v.drl")], gap_check=0)
+    res = build_job(cfg)
+    assert res.vias_ignored == 2
+    assert sorted(res.drills.by_bit) == [0.8] and len(res.drills.by_bit[0.8]) == 1  # only the real 0.8 hole
+    assert res.via_pads_removed == 1  # the isolated via at (20,10); the one on the trace stays
+    names = len(res.copper["TOP"].geoms)
+    assert names == 2  # trace+via-on-trace, and the 0.8 mm pad
+
+    keep = build_job(JobConfig(top=cfg.top, drills=cfg.drills, gap_check=0, skip_vias=False))
+    assert keep.vias_ignored == 0 and len(keep.copper["TOP"].geoms) == 3
+    assert len(keep.drills.by_bit[0.8]) == 3  # vias get drilled with the 0.8 bit when not ignored

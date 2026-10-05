@@ -162,6 +162,13 @@ class MainWindow(QMainWindow):
         row.addWidget(r)
         tl.addRow(row)
         tl.addRow(self.db_label)
+        self.skip_vias = QCheckBox("Ignore vias (don't drill them, drop lone via pads)")
+        self.skip_vias.setChecked(self.settings.value("skip_vias", "true") in (True, "true"))
+        self.skip_vias.toggled.connect(self._vias_edited)
+        tl.addRow(self.skip_vias)
+        self.via_max = _spin(0.1, 2.0, float(self.settings.value("via_max", 0.6)), 0.05, 2, " mm")
+        self.via_max.valueChanged.connect(self._vias_edited)
+        tl.addRow("Holes smaller than", self.via_max)
         lv.addWidget(g)
 
         # copper check
@@ -324,6 +331,12 @@ class MainWindow(QMainWindow):
             self.db_label.setText(f"Added {len(sizes)} drill sizes from {name} (“PCB Bits” group)")
         self._refresh_tool_widgets()
 
+    def _vias_edited(self, *_) -> None:
+        self.settings.setValue("skip_vias", self.skip_vias.isChecked())
+        self.settings.setValue("via_max", self.via_max.value())
+        self.via_max.setEnabled(self.skip_vias.isChecked())
+        self._settings_changed()
+
     def _reset_drills(self) -> None:
         self.drill_sizes.setText(DEFAULT_DRILLS)
         self._drills_edited()
@@ -421,6 +434,7 @@ class MainWindow(QMainWindow):
             top=self.f_top.path(), bottom=self.f_bot.path(), outline=self.f_out.path(), drills=drills,
             isolation=IsolationSettings(cut_width=width, passes=self.passes.value(), overlap=self.overlap.value() / 100),
             precompute_isolation=self.iso_group.isChecked(), gap_check=self.gap.value(),
+            skip_vias=self.skip_vias.isChecked(), via_max=self.via_max.value(),
             drill_bits=self._drill_sizes(), zero_at_corner=self.zero.isChecked(),
             align_holes=self.align.isChecked(), align_diameter=self.align_d.value(), align_margin=self.align_m.value(),
         )
@@ -501,6 +515,8 @@ class MainWindow(QMainWindow):
         self.export_btn.setEnabled(True)
         tight = sum(len(v) for v in res.tight.values())
         msg = f"Board {res.width:.1f} × {res.height:.1f} mm"
+        if res.vias_ignored:
+            msg += f"  —  {res.vias_ignored} via holes ignored"
         if tight:
             msg += f"  —  {tight} spot(s) where copper gaps are narrower than {cfg.gap_check:g} mm (red circles)"
         self.statusBar().showMessage(msg)
